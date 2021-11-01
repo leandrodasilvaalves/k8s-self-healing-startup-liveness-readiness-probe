@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pedelogo-catalog-api-deployment
+spec:  
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pedelogo-catalog-api
+  template:
+    metadata:
+      labels:
+        app: pedelogo-catalog-api
+    spec:      
+      containers:
+      - name: pedelogo-catalog-api
+        image: leandroalves86/pedelogo-catalogo-api:v1
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:        
+        - containerPort: 80
+        - containerPort: 443
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          timeoutSeconds: 1
+          failureThreshold: 3
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /read
+            port: 80
+            scheme: HTTP
+          timeoutSeconds: 1
+          failureThreshold: 3
+          periodSeconds: 5
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          failureThreshold: 30
+          periodSeconds: 10
+        envFrom:
+          - configMapRef:
+              name: api-config
+        env:        
+        - name: "Mongo__User"
+          valueFrom:
+            secretKeyRef:
+              name: mongo-secret          
+              key: MONGO_INITDB_ROOT_USERNAME
+        - name: "Mongo__Password"
+          valueFrom:
+            secretKeyRef:
+              name: mongo-secret
+              key: MONGO_INITDB_ROOT_PASSWORD      
+      imagePullSecrets:
+        - name: registry-secret
+
+---
+
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: pedelogo-catalog-api-service
+spec:
+  selector:
+    app: pedelogo-catalog-api
+  ports:
+  - port: 80 
+    name: http       
+    protocol: TCP
+    targetPort: 80
+  - port: 443
+    name: https
+    protocol: TCP
+    targetPort: 443
+  type: LoadBalancer
+
